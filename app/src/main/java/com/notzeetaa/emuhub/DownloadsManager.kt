@@ -68,14 +68,43 @@ object DownloadsManager {
         }
     }
 
-    fun startDownload(fileName: String, totalBytes: Long) {
-        _activeDownloads[fileName] = ActiveDownload(fileName, 0, totalBytes, 0)
+    fun startDownload(fileName: String, totalBytes: Long = 0L) {
+        _activeDownloads[fileName] = ActiveDownload(
+            fileName = fileName,
+            progress = 0,
+            totalBytes = totalBytes.coerceAtLeast(0L),
+            downloadedBytes = 0L
+        )
+    }
+
+    /** Update the size after the server sends the response headers without resetting progress. */
+    fun updateTotalBytes(fileName: String, totalBytes: Long) {
+        _activeDownloads[fileName]?.let { current ->
+            val safeTotal = totalBytes.coerceAtLeast(0L)
+            val progress = if (safeTotal > 0L) {
+                ((current.downloadedBytes.toDouble() / safeTotal) * 100).toInt().coerceIn(0, 100)
+            } else {
+                current.progress
+            }
+            _activeDownloads[fileName] = current.copy(
+                progress = progress,
+                totalBytes = safeTotal
+            )
+        }
     }
 
     fun updateProgress(fileName: String, downloadedBytes: Long) {
-        _activeDownloads[fileName]?.let {
-            val progress = ((downloadedBytes.toDouble() / it.totalBytes) * 100).toInt()
-            _activeDownloads[fileName] = it.copy(progress = progress, downloadedBytes = downloadedBytes)
+        _activeDownloads[fileName]?.let { current ->
+            val safeDownloaded = downloadedBytes.coerceAtLeast(0L)
+            val progress = if (current.totalBytes > 0L) {
+                ((safeDownloaded.toDouble() / current.totalBytes) * 100).toInt().coerceIn(0, 100)
+            } else {
+                0
+            }
+            _activeDownloads[fileName] = current.copy(
+                progress = progress,
+                downloadedBytes = safeDownloaded
+            )
         }
     }
 

@@ -1,0 +1,164 @@
+{
+  "catalogVersion": 1,
+  "turnipSources": [
+    {
+      "id": "stevenmxz",
+      "name": "StevenMXZ",
+      "apiUrl": "https://api.github.com/repos/StevenMXZ/Adreno-Tools-Drivers/releases",
+      "description": "Stable and Gen8 Turnip builds, plus Qualcomm drivers.",
+      "experimental": false,
+      "supportedSeries": [
+        "6xx",
+        "7xx",
+        "8xx"
+      ],
+      "filters": {
+        "6xx": [
+          "Turnip v26"
+        ],
+        "7xx": [
+          "Turnip v26"
+        ],
+        "8xx": [
+          "Turnip Gen8"
+        ]
+      }
+    },
+    {
+      "id": "whitebelyash",
+      "name": "whitebelyash",
+      "apiUrl": "https://api.github.com/repos/whitebelyash/AdrenoToolsDrivers/releases",
+      "description": "Mainline/Stable Turnip builds with broad Adreno support.",
+      "experimental": true,
+      "supportedSeries": [
+        "6xx",
+        "7xx",
+        "8xx"
+      ],
+      "filters": {
+        "default": [
+          "A8XX",
+          "Mainline Turnip",
+          "Stable Turnip",
+          "tu_",
+          "stu_"
+        ]
+      }
+    },
+    {
+      "id": "k11mch1",
+      "name": "K11MCH1",
+      "apiUrl": "https://api.github.com/repos/K11MCH1/AdrenoToolsDrivers/releases",
+      "description": "Long-running AdrenoTools Turnip driver repository.",
+      "experimental": false,
+      "supportedSeries": [
+        "6xx",
+        "7xx"
+      ],
+      "filters": {
+        "default": [
+          "Turnip"
+        ]
+      }
+    },
+    {
+      "id": "mrpurple",
+      "name": "MrPurple",
+      "apiUrl": "https://api.github.com/repos/MrPurple666/purple-turnip/releases",
+      "description": "Unified custom Turnip builds for A6xx/A7xx/A8xx.",
+      "experimental": true,
+      "supportedSeries": [
+        "6xx",
+        "7xx",
+        "8xx"
+      ],
+      "filters": {
+        "default": [
+          "Turnip",
+          "vturnip",
+          "turnip_mrpurple"
+        ]
+      }
+    },
+    {
+      "id": "banner",
+      "name": "The412Banner",
+      "apiUrl": "https://api.github.com/repos/The412Banner/Banners-Turnip/releases",
+      "description": "Automated bleeding-edge Mesa Turnip builds.",
+      "experimental": true,
+      "supportedSeries": [
+        "6xx",
+        "7xx",
+        "8xx"
+      ],
+      "filters": {
+        "default": [
+          "Turnip",
+          "Mesa",
+          "Adreno"
+        ]
+      },
+      "assetIncludes": {
+        "8xx": [
+          "A8xx"
+        ]
+      },
+      "assetExcludes": {
+        "6xx": [
+          "A8xx",
+          "710-720-Test"
+        ],
+        "7xx": [
+          "A8xx",
+          "710-720-Test"
+        ]
+      }
+    }
+  ],
+  "qualcommSources": [
+    {
+      "id": "stevenmxz-qualcomm",
+      "name": "StevenMXZ",
+      "apiUrl": "https://api.github.com/repos/StevenMXZ/Adreno-Tools-Drivers/releases",
+      "description": "Qualcomm proprietary driver packages published by StevenMXZ.",
+      "experimental": false,
+      "filters": [
+        "Qualcomm"
+      ]
+    },
+    {
+      "id": "k11mch1-qualcomm",
+      "name": "K11MCH1",
+      "apiUrl": "https://api.github.com/repos/K11MCH1/AdrenoToolsDrivers/releases",
+      "description": "Qualcomm driver packages extracted from Qualcomm-based devices.",
+      "experimental": false,
+      "filters": [
+        "Qualcomm Driver",
+        "Qualcomm"
+      ]
+    }
+  ],
+  "componentSources": [
+    {
+      "id": "winnative",
+      "name": "WinNative-Emu",
+      "manifestUrl": "https://raw.githubusercontent.com/WinNative-Emu/Components/refs/heads/main/contents.json",
+      "description": "EmuHub default component catalog.",
+      "experimental": false
+    },
+    {
+      "id": "xnick",
+      "name": "Xnick Nightly",
+      "manifestUrl": "https://raw.githubusercontent.com/nicholasx417/WinNative-Components/refs/heads/main/contents.json",
+      "description": "Automated WinNative/Winlator component builds.",
+      "experimental": true
+    },
+    {
+      "id": "banner-components",
+      "name": "The412Banner",
+      "manifestUrl": "https://raw.githubusercontent.com/The412Banner/winlator-contents/main/contents.json",
+      "description": "Nightly Winlator component catalog.",
+      "experimental": true
+    }
+  ]
+}
