@@ -26,6 +26,7 @@ private const val KEY_DOWNLOAD_SECTION = "download_section"
 private const val KEY_TURNIP_SOURCE = "turnip_source"
 private const val KEY_QUALCOMM_SOURCE = "qualcomm_source"
 private const val KEY_SOURCE_CATALOG_URL = "source_catalog_url"
+private const val KEY_APP_LANGUAGE = "app_language"
 
 object SettingsManager {
     private lateinit var prefs: SharedPreferences
@@ -51,6 +52,12 @@ object SettingsManager {
     }
 
     fun getColorTheme(): ColorTheme = enumPreference(KEY_COLOR_THEME, ColorTheme.DYNAMIC)
+
+    fun getAppLanguage(): AppLanguage = enumPreference(KEY_APP_LANGUAGE, AppLanguage.SYSTEM)
+
+    fun setAppLanguage(language: AppLanguage) {
+        prefs.edit().putString(KEY_APP_LANGUAGE, language.name).apply()
+    }
 
     fun setColorTheme(theme: ColorTheme) {
         prefs.edit().putString(KEY_COLOR_THEME, theme.name).apply()

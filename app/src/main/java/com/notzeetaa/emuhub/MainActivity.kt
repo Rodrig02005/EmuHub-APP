@@ -34,6 +34,7 @@ import kotlinx.coroutines.withContext
 private enum class AppScreen {
     HOME,
     DOWNLOADS,
+    GUIDE,
     SETTINGS
 }
 
@@ -47,7 +48,7 @@ class MainActivity : ComponentActivity() {
         SettingsManager.init(applicationContext)
 
         val appVersion = try {
-            packageManager.getPackageInfo(packageName, 0).versionName
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"
         } catch (_: PackageManager.NameNotFoundException) {
             "unknown"
         }
@@ -55,12 +56,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             var themeMode by remember { mutableStateOf(SettingsManager.getThemeMode()) }
             var colorTheme by remember { mutableStateOf(SettingsManager.getColorTheme()) }
+            var appLanguage by remember { mutableStateOf(SettingsManager.getAppLanguage()) }
 
-            EmuHubTheme(themeMode = themeMode, colorTheme = colorTheme) {
+            ProvideAppLanguage(appLanguage) {
+                EmuHubTheme(themeMode = themeMode, colorTheme = colorTheme) {
                 val downloadScope = rememberCoroutineScope()
                 val appContext = applicationContext
 
                 var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
+                var guideTopic by remember { mutableStateOf<String?>(null) }
                 var refreshTrigger by remember { mutableIntStateOf(0) }
                 var deviceInfo by remember { mutableStateOf<DeviceInfo?>(null) }
                 var isLoading by remember { mutableStateOf(true) }
@@ -167,6 +171,12 @@ class MainActivity : ComponentActivity() {
                                 onBack = { currentScreen = AppScreen.HOME }
                             )
 
+                            AppScreen.GUIDE -> ComponentGuideScreen(
+                                onBack = { currentScreen = AppScreen.HOME },
+                                adrenoSeries = deviceInfo?.adrenoSeries,
+                                initialTopicId = guideTopic
+                            )
+
                             AppScreen.SETTINGS -> SettingsScreen(
                                 onBack = { currentScreen = AppScreen.HOME },
                                 themeMode = themeMode,
@@ -179,6 +189,11 @@ class MainActivity : ComponentActivity() {
                                     SettingsManager.setColorTheme(theme)
                                     colorTheme = theme
                                 },
+                                appLanguage = appLanguage,
+                                onAppLanguageChange = { language ->
+                                    SettingsManager.setAppLanguage(language)
+                                    appLanguage = language
+                                },
                                 onSourceCatalogChanged = { refreshTrigger++ }
                             )
 
@@ -189,9 +204,9 @@ class MainActivity : ComponentActivity() {
                                         TopAppBar(
                                             title = {
                                                 Column {
-                                                    Text("EmuHub")
+                                                    Text(appString(R.string.app_name))
                                                     Text(
-                                                        text = "Alpha v$appVersion",
+                                                        text = appString(R.string.alpha_version, appVersion),
                                                         style = MaterialTheme.typography.labelSmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
@@ -219,7 +234,7 @@ class MainActivity : ComponentActivity() {
                                                             strokeWidth = 2.dp
                                                         )
                                                     } else {
-                                                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                                                        Icon(Icons.Default.Refresh, contentDescription = appString(R.string.refresh))
                                                     }
                                                 }
 
@@ -233,7 +248,16 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     }
                                                 ) {
-                                                    Icon(Icons.Default.Favorite, contentDescription = "Donate")
+                                                    Icon(Icons.Default.Favorite, contentDescription = appString(R.string.donate))
+                                                }
+
+                                                IconButton(
+                                                    onClick = {
+                                                        guideTopic = null
+                                                        currentScreen = AppScreen.GUIDE
+                                                    }
+                                                ) {
+                                                    Icon(Icons.Default.Info, contentDescription = appString(R.string.component_guide))
                                                 }
 
                                                 BadgedBox(
@@ -242,12 +266,12 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 ) {
                                                     IconButton(onClick = { currentScreen = AppScreen.DOWNLOADS }) {
-                                                        Icon(Icons.Default.Download, contentDescription = "Downloads")
+                                                        Icon(Icons.Default.Download, contentDescription = appString(R.string.downloads))
                                                     }
                                                 }
 
                                                 IconButton(onClick = { currentScreen = AppScreen.SETTINGS }) {
-                                                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                                                    Icon(Icons.Default.Settings, contentDescription = appString(R.string.settings))
                                                 }
                                             }
                                         )
@@ -279,6 +303,10 @@ class MainActivity : ComponentActivity() {
                                             qualcommSourceId = sourceId
                                             SettingsManager.setQualcommSource(sourceId)
                                         },
+                                        onOpenGuide = { topicId ->
+                                            guideTopic = topicId
+                                            currentScreen = AppScreen.GUIDE
+                                        },
                                         onDownloadAsset = { release, asset ->
                                             downloadScope.launch {
                                                 downloadAsset(appContext, release, asset)
@@ -296,6 +324,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
         }
     }
 }

@@ -7,6 +7,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -15,6 +16,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -47,15 +49,17 @@ fun DownloadsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val completedBytes = completed.sumOf { it.sizeBytes }
+    val openWithLabel = appString(R.string.open_with)
+    val shareChooserLabel = appString(R.string.share_chooser)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Downloads")
+                        Text(appString(R.string.downloads))
                         Text(
-                            "Your download library",
+                            appString(R.string.your_download_library),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -63,7 +67,7 @@ fun DownloadsScreen(onBack: () -> Unit) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = appString(R.string.back))
                     }
                 }
             )
@@ -102,9 +106,9 @@ fun DownloadsScreen(onBack: () -> Unit) {
                             }
                             Spacer(Modifier.width(14.dp))
                             Column {
-                                Text("Download library", style = MaterialTheme.typography.titleLarge)
+                                Text(appString(R.string.download_library), style = MaterialTheme.typography.titleLarge)
                                 Text(
-                                    "Everything you download from EmuHub in one place.",
+                                    appString(R.string.download_library_desc),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -118,19 +122,19 @@ fun DownloadsScreen(onBack: () -> Unit) {
                             DownloadStatCard(
                                 icon = Icons.Default.Downloading,
                                 value = active.size.toString(),
-                                label = "Active",
+                                label = appString(R.string.active),
                                 modifier = Modifier.weight(1f)
                             )
                             DownloadStatCard(
                                 icon = Icons.Default.Inventory2,
                                 value = completed.size.toString(),
-                                label = "Saved",
+                                label = appString(R.string.saved),
                                 modifier = Modifier.weight(1f)
                             )
                             DownloadStatCard(
                                 icon = Icons.Default.Storage,
                                 value = formatBytes(completedBytes),
-                                label = "Stored",
+                                label = appString(R.string.stored),
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -141,8 +145,8 @@ fun DownloadsScreen(onBack: () -> Unit) {
             if (active.isNotEmpty()) {
                 item(key = "active_header") {
                     DownloadListHeader(
-                        title = "Downloading now",
-                        subtitle = "${active.size} active download${if (active.size == 1) "" else "s"}",
+                        title = appString(R.string.downloading_now),
+                        subtitle = appString(R.string.active_downloads_count, active.size),
                         icon = Icons.Default.Downloading
                     )
                 }
@@ -180,10 +184,15 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                             maxLines = 2
                                         )
                                         Text(
-                                            when {
-                                                download.totalBytes > 0L -> "${download.progress}% complete"
-                                                download.downloadedBytes > 0L -> "Downloading…"
-                                                else -> "Connecting…"
+                                            when (download.status) {
+                                                DownloadStatus.PAUSED -> appString(R.string.paused_progress, download.progress)
+                                                DownloadStatus.CANCELLING -> appString(R.string.cancelling)
+                                                DownloadStatus.CONNECTING -> appString(R.string.connecting)
+                                                DownloadStatus.DOWNLOADING -> when {
+                                                    download.totalBytes > 0L -> appString(R.string.progress_complete, download.progress)
+                                                    download.downloadedBytes > 0L -> appString(R.string.downloading)
+                                                    else -> appString(R.string.starting)
+                                                }
                                             },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -192,7 +201,28 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                     AssistChip(
                                         onClick = {},
                                         enabled = false,
-                                        label = { Text("Active") }
+                                        label = {
+                                            Text(
+                                                when (download.status) {
+                                                    DownloadStatus.PAUSED -> appString(R.string.paused)
+                                                    DownloadStatus.CANCELLING -> appString(R.string.stopping)
+                                                    DownloadStatus.CONNECTING -> appString(R.string.connecting_short)
+                                                    DownloadStatus.DOWNLOADING -> appString(R.string.active)
+                                                }
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                when (download.status) {
+                                                    DownloadStatus.PAUSED -> Icons.Default.Pause
+                                                    DownloadStatus.CANCELLING -> Icons.Default.Close
+                                                    DownloadStatus.CONNECTING -> Icons.Default.Sync
+                                                    DownloadStatus.DOWNLOADING -> Icons.Default.Downloading
+                                                },
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
                                     )
                                 }
 
@@ -220,10 +250,53 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                     Text(
-                                        if (download.totalBytes > 0L) formatBytes(download.totalBytes) else "Size pending",
+                                        if (download.totalBytes > 0L) formatBytes(download.totalBytes) else appString(R.string.size_pending),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            if (download.status == DownloadStatus.PAUSED) {
+                                                resumeActiveDownload(context, name)
+                                            } else {
+                                                pauseActiveDownload(name)
+                                            }
+                                        },
+                                        enabled = download.status != DownloadStatus.CANCELLING,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    ) {
+                                        Icon(
+                                            if (download.status == DownloadStatus.PAUSED) {
+                                                Icons.Default.PlayArrow
+                                            } else {
+                                                Icons.Default.Pause
+                                            },
+                                            contentDescription = null
+                                        )
+                                        Spacer(Modifier.width(7.dp))
+                                        Text(if (download.status == DownloadStatus.PAUSED) appString(R.string.resume) else appString(R.string.pause))
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { cancelActiveDownload(context, name) },
+                                        enabled = download.status != DownloadStatus.CANCELLING,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                        )
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = null)
+                                        Spacer(Modifier.width(7.dp))
+                                        Text(appString(R.string.cancel))
+                                    }
                                 }
                             }
                         }
@@ -234,8 +307,8 @@ fun DownloadsScreen(onBack: () -> Unit) {
             if (completed.isNotEmpty()) {
                 item(key = "completed_header") {
                     DownloadListHeader(
-                        title = "Downloaded files",
-                        subtitle = "Ready to open, share or manage",
+                        title = appString(R.string.downloaded_files),
+                        subtitle = appString(R.string.ready_open_share_manage),
                         icon = Icons.Default.Folder
                     )
                 }
@@ -283,7 +356,7 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                     }
                                     Icon(
                                         Icons.Default.CheckCircle,
-                                        contentDescription = "Downloaded",
+                                        contentDescription = appString(R.string.downloaded),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -328,14 +401,14 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                                 setDataAndType(uri, "application/octet-stream")
                                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                             }
-                                            context.startActivity(Intent.createChooser(intent, "Open with"))
+                                            context.startActivity(Intent.createChooser(intent, openWithLabel))
                                         },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(16.dp)
                                     ) {
                                         Icon(Icons.Default.OpenInNew, contentDescription = null)
                                         Spacer(Modifier.width(7.dp))
-                                        Text("Open")
+                                        Text(appString(R.string.open))
                                     }
 
                                     OutlinedButton(
@@ -350,14 +423,14 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                                 putExtra(Intent.EXTRA_STREAM, uri)
                                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                             }
-                                            context.startActivity(Intent.createChooser(shareIntent, "Share"))
+                                            context.startActivity(Intent.createChooser(shareIntent, shareChooserLabel))
                                         },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(16.dp)
                                     ) {
                                         Icon(Icons.Default.Share, contentDescription = null)
                                         Spacer(Modifier.width(7.dp))
-                                        Text("Share")
+                                        Text(appString(R.string.share))
                                     }
 
                                     FilledTonalIconButton(
@@ -367,7 +440,7 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                             contentColor = MaterialTheme.colorScheme.onErrorContainer
                                         )
                                     ) {
-                                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete")
+                                        Icon(Icons.Default.DeleteOutline, contentDescription = appString(R.string.delete))
                                     }
                                 }
                             }
@@ -377,8 +450,8 @@ fun DownloadsScreen(onBack: () -> Unit) {
                             AlertDialog(
                                 onDismissRequest = { showDeleteDialog = false },
                                 icon = { Icon(Icons.Default.DeleteOutline, contentDescription = null) },
-                                title = { Text("Delete file") },
-                                text = { Text("Are you sure you want to delete ${file.fileName}?") },
+                                title = { Text(appString(R.string.delete_file)) },
+                                text = { Text(appString(R.string.delete_confirm, file.fileName)) },
                                 confirmButton = {
                                     Button(
                                         onClick = {
@@ -393,12 +466,12 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                             contentColor = MaterialTheme.colorScheme.onError
                                         )
                                     ) {
-                                        Text("Delete")
+                                        Text(appString(R.string.delete))
                                     }
                                 },
                                 dismissButton = {
                                     TextButton(onClick = { showDeleteDialog = false }) {
-                                        Text("Cancel")
+                                        Text(appString(R.string.cancel))
                                     }
                                 }
                             )
@@ -436,9 +509,9 @@ fun DownloadsScreen(onBack: () -> Unit) {
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
-                            Text("No downloads yet", style = MaterialTheme.typography.titleMedium)
+                            Text(appString(R.string.no_downloads_yet), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "Downloads started from the hub will appear here.",
+                                appString(R.string.downloads_started_here),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -571,7 +644,7 @@ private suspend fun deleteFile(context: android.content.Context, file: Downloads
             }
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Error deleting: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, appStringFor(context, SettingsManager.getAppLanguage(), R.string.error_deleting, e.message ?: "Unknown"), Toast.LENGTH_LONG).show()
             }
             false
         }
@@ -600,11 +673,16 @@ fun SettingsScreen(
     colorTheme: ColorTheme,
     onThemeModeChange: (ThemeMode) -> Unit,
     onColorThemeChange: (ColorTheme) -> Unit,
+    appLanguage: AppLanguage,
+    onAppLanguageChange: (AppLanguage) -> Unit,
     onSourceCatalogChanged: () -> Unit
 ) {
     BackHandler { onBack() }
 
     val context = LocalContext.current
+    val downloadsDefaultLabel = appString(R.string.downloads_default)
+    val sourceCatalogSavedMessage = appString(R.string.source_catalog_saved)
+    val invalidCatalogUrlMessage = appString(R.string.invalid_catalog_url)
     var currentFolderUri by remember { mutableStateOf(SettingsManager.getDownloadFolderUri()) }
     var displayPath by remember { mutableStateOf<String?>(null) }
     var sourceCatalogUrl by remember { mutableStateOf(SettingsManager.getSourceCatalogUrl()) }
@@ -625,22 +703,22 @@ fun SettingsScreen(
         }
     )
 
-    LaunchedEffect(currentFolderUri) {
+    LaunchedEffect(currentFolderUri, appLanguage) {
         displayPath = if (currentFolderUri != null) {
             val uri = Uri.parse(currentFolderUri)
             DocumentFile.fromTreeUri(context, uri)?.name ?: uri.path
         } else {
-            "Downloads (default)"
+            downloadsDefaultLabel
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(appString(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = appString(R.string.back))
                     }
                 }
             )
@@ -656,15 +734,30 @@ fun SettingsScreen(
             item {
                 SettingsSectionHeader(
                     icon = Icons.Default.Palette,
-                    title = "Appearance",
-                    subtitle = "Personalize EmuHub with Material 3 themes."
+                    title = appString(R.string.appearance),
+                    subtitle = appString(R.string.appearance_desc)
                 )
             }
 
             item {
-                SettingsCard(title = "Theme mode") {
+                SettingsCard(title = appString(R.string.app_language)) {
                     Text(
-                        text = "Choose how light and dark mode are applied.",
+                        text = appString(R.string.language_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    LanguageSelector(
+                        selected = appLanguage,
+                        onSelected = onAppLanguageChange
+                    )
+                }
+            }
+
+            item {
+                SettingsCard(title = appString(R.string.theme_mode)) {
+                    Text(
+                        text = appString(R.string.theme_mode_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -677,9 +770,9 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsCard(title = "Color theme") {
+                SettingsCard(title = appString(R.string.color_theme)) {
                     Text(
-                        text = "Dynamic uses your Android wallpaper colors when supported.",
+                        text = appString(R.string.color_theme_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -694,15 +787,15 @@ fun SettingsScreen(
             item {
                 SettingsSectionHeader(
                     icon = Icons.Default.Dns,
-                    title = "Sources",
-                    subtitle = "Manage the remote catalog that tells EmuHub where to fetch releases."
+                    title = appString(R.string.sources),
+                    subtitle = appString(R.string.sources_desc)
                 )
             }
 
             item {
-                SettingsCard(title = "Source catalog") {
+                SettingsCard(title = appString(R.string.source_catalog)) {
                     Text(
-                        text = "EmuHub refreshes this JSON automatically. Driver files stay on the original upstream repositories, so new releases appear without rebuilding the app.",
+                        text = appString(R.string.source_catalog_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -711,7 +804,7 @@ fun SettingsScreen(
                         value = sourceCatalogUrl,
                         onValueChange = { sourceCatalogUrl = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Catalog URL") },
+                        label = { Text(appString(R.string.catalog_url)) },
                         singleLine = true,
                         shape = RoundedCornerShape(18.dp)
                     )
@@ -727,16 +820,16 @@ fun SettingsScreen(
                                     SettingsManager.setSourceCatalogUrl(normalized)
                                     sourceCatalogUrl = normalized
                                     onSourceCatalogChanged()
-                                    Toast.makeText(context, "Source catalog saved", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, sourceCatalogSavedMessage, Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "Enter a valid http(s) URL", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, invalidCatalogUrlMessage, Toast.LENGTH_SHORT).show()
                                 }
                             },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Save, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Save")
+                            Text(appString(R.string.save))
                         }
                         OutlinedButton(
                             onClick = {
@@ -748,15 +841,15 @@ fun SettingsScreen(
                         ) {
                             Icon(Icons.Default.Restore, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Default")
+                            Text(appString(R.string.default_label))
                         }
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = if (sourceCatalogUrl == DEFAULT_SOURCE_CATALOG_URL) {
-                            "Using EmuHub managed catalog"
+                            appString(R.string.using_managed_catalog)
                         } else {
-                            "Using custom catalog"
+                            appString(R.string.using_custom_catalog)
                         },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
@@ -767,13 +860,13 @@ fun SettingsScreen(
             item {
                 SettingsSectionHeader(
                     icon = Icons.Default.Download,
-                    title = "Downloads",
-                    subtitle = "Choose where downloaded components are saved."
+                    title = appString(R.string.downloads),
+                    subtitle = appString(R.string.downloads_settings_desc)
                 )
             }
 
             item {
-                SettingsCard(title = "Download folder") {
+                SettingsCard(title = appString(R.string.download_folder)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -792,11 +885,11 @@ fun SettingsScreen(
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = displayPath ?: "Downloads (default)",
+                                text = displayPath ?: appString(R.string.downloads_default),
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Text(
-                                text = if (currentFolderUri == null) "System Downloads folder" else "Custom folder",
+                                text = if (currentFolderUri == null) appString(R.string.system_downloads_folder) else appString(R.string.custom_folder),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -810,7 +903,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.FolderOpen, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Choose folder")
+                        Text(appString(R.string.choose_folder))
                     }
 
                     if (currentFolderUri != null) {
@@ -819,11 +912,11 @@ fun SettingsScreen(
                             onClick = {
                                 SettingsManager.clearDownloadFolder()
                                 currentFolderUri = null
-                                displayPath = "Downloads (default)"
+                                displayPath = downloadsDefaultLabel
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Reset to default")
+                            Text(appString(R.string.reset_to_default))
                         }
                     }
                 }
@@ -882,15 +975,71 @@ private fun SettingsCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageSelector(
+    selected: AppLanguage,
+    onSelected: (AppLanguage) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val choices = AppLanguage.values().toList()
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = languageLabel(selected),
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            label = { Text(appString(R.string.language)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            shape = RoundedCornerShape(18.dp)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            choices.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(languageLabel(language)) },
+                    leadingIcon = if (language == selected) {
+                        { Icon(Icons.Default.Check, contentDescription = null) }
+                    } else null,
+                    onClick = {
+                        expanded = false
+                        onSelected(language)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun languageLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.SYSTEM -> appString(R.string.language_system)
+    AppLanguage.ENGLISH -> appString(R.string.language_english)
+    AppLanguage.PORTUGUESE_PORTUGAL -> appString(R.string.language_pt_pt)
+    AppLanguage.PORTUGUESE_BRAZIL -> appString(R.string.language_pt_br)
+    AppLanguage.SPANISH -> appString(R.string.language_spanish)
+    AppLanguage.FRENCH -> appString(R.string.language_french)
+    AppLanguage.GERMAN -> appString(R.string.language_german)
+}
+
 @Composable
 private fun ThemeModeSelector(
     selected: ThemeMode,
     onSelected: (ThemeMode) -> Unit
 ) {
     val choices = listOf(
-        ThemeMode.SYSTEM to Pair("System", Icons.Default.SettingsBrightness),
-        ThemeMode.LIGHT to Pair("Light", Icons.Default.LightMode),
-        ThemeMode.DARK to Pair("Dark", Icons.Default.DarkMode),
+        ThemeMode.SYSTEM to Pair(appString(R.string.theme_system), Icons.Default.SettingsBrightness),
+        ThemeMode.LIGHT to Pair(appString(R.string.theme_light), Icons.Default.LightMode),
+        ThemeMode.DARK to Pair(appString(R.string.theme_dark), Icons.Default.DarkMode),
         ThemeMode.AMOLED to Pair("AMOLED", Icons.Default.Contrast)
     )
 
@@ -926,11 +1075,11 @@ private fun ColorThemeSelector(
     onSelected: (ColorTheme) -> Unit
 ) {
     val choices = listOf(
-        ColorTheme.DYNAMIC to "Dynamic",
+        ColorTheme.DYNAMIC to appString(R.string.theme_dynamic),
         ColorTheme.EMUHUB to "EmuHub",
-        ColorTheme.BLUE to "Blue",
-        ColorTheme.PURPLE to "Purple",
-        ColorTheme.ORANGE to "Orange"
+        ColorTheme.BLUE to appString(R.string.theme_blue),
+        ColorTheme.PURPLE to appString(R.string.theme_purple),
+        ColorTheme.ORANGE to appString(R.string.theme_orange)
     )
 
     Row(
@@ -953,6 +1102,503 @@ private fun ColorThemeSelector(
                         )
                     }
                 } else null
+            )
+        }
+    }
+}
+
+// ---------- Component guide ----------
+private data class GuideTopic(
+    val id: String,
+    @StringRes val categoryRes: Int,
+    @StringRes val titleRes: Int,
+    @StringRes val subtitleRes: Int,
+    val icon: ImageVector,
+    @StringRes val badgeRes: Int,
+    @StringRes val whatItIsRes: Int,
+    @StringRes val tryFirstRes: Int,
+    @StringRes val bestForRes: Int,
+    @StringRes val switchWhenRes: Int,
+    val tipRes: List<Int>
+)
+
+private val componentGuideTopics = listOf(
+    GuideTopic(
+        id = "turnip",
+        categoryRes = R.string.category_gpu_driver,
+        titleRes = R.string.guide_turnip_title,
+        subtitleRes = R.string.guide_turnip_subtitle,
+        icon = Icons.Default.Eco,
+        badgeRes = R.string.badge_recommended,
+        whatItIsRes = R.string.guide_turnip_whatitis,
+        tryFirstRes = R.string.guide_turnip_tryfirst,
+        bestForRes = R.string.guide_turnip_bestfor,
+        switchWhenRes = R.string.guide_turnip_switchwhen,
+        tipRes = listOf(
+            R.string.guide_turnip_tip1,
+            R.string.guide_turnip_tip2,
+            R.string.guide_turnip_tip3
+        )
+    ),
+    GuideTopic(
+        id = "qualcomm",
+        categoryRes = R.string.category_gpu_driver,
+        titleRes = R.string.guide_qualcomm_title,
+        subtitleRes = R.string.guide_qualcomm_subtitle,
+        icon = Icons.Default.Memory,
+        badgeRes = R.string.badge_alternative,
+        whatItIsRes = R.string.guide_qualcomm_whatitis,
+        tryFirstRes = R.string.guide_qualcomm_tryfirst,
+        bestForRes = R.string.guide_qualcomm_bestfor,
+        switchWhenRes = R.string.guide_qualcomm_switchwhen,
+        tipRes = listOf(
+            R.string.guide_qualcomm_tip1,
+            R.string.guide_qualcomm_tip2,
+            R.string.guide_qualcomm_tip3
+        )
+    ),
+    GuideTopic(
+        id = "wine",
+        categoryRes = R.string.category_windows,
+        titleRes = R.string.guide_wine_title,
+        subtitleRes = R.string.guide_wine_subtitle,
+        icon = Icons.Default.WineBar,
+        badgeRes = R.string.badge_base_runtime,
+        whatItIsRes = R.string.guide_wine_whatitis,
+        tryFirstRes = R.string.guide_wine_tryfirst,
+        bestForRes = R.string.guide_wine_bestfor,
+        switchWhenRes = R.string.guide_wine_switchwhen,
+        tipRes = listOf(
+            R.string.guide_wine_tip1,
+            R.string.guide_wine_tip2,
+            R.string.guide_wine_tip3
+        )
+    ),
+    GuideTopic(
+        id = "proton",
+        categoryRes = R.string.category_windows,
+        titleRes = R.string.guide_proton_title,
+        subtitleRes = R.string.guide_proton_subtitle,
+        icon = Icons.Default.Bolt,
+        badgeRes = R.string.badge_games,
+        whatItIsRes = R.string.guide_proton_whatitis,
+        tryFirstRes = R.string.guide_proton_tryfirst,
+        bestForRes = R.string.guide_proton_bestfor,
+        switchWhenRes = R.string.guide_proton_switchwhen,
+        tipRes = listOf(
+            R.string.guide_proton_tip1,
+            R.string.guide_proton_tip2,
+            R.string.guide_proton_tip3
+        )
+    ),
+    GuideTopic(
+        id = "box64",
+        categoryRes = R.string.category_cpu,
+        titleRes = R.string.guide_box64_title,
+        subtitleRes = R.string.guide_box64_subtitle,
+        icon = Icons.Default.Inventory2,
+        badgeRes = R.string.badge_common_default,
+        whatItIsRes = R.string.guide_box64_whatitis,
+        tryFirstRes = R.string.guide_box64_tryfirst,
+        bestForRes = R.string.guide_box64_bestfor,
+        switchWhenRes = R.string.guide_box64_switchwhen,
+        tipRes = listOf(
+            R.string.guide_box64_tip1,
+            R.string.guide_box64_tip2,
+            R.string.guide_box64_tip3
+        )
+    ),
+    GuideTopic(
+        id = "wowbox64",
+        categoryRes = R.string.category_cpu,
+        titleRes = R.string.guide_wowbox64_title,
+        subtitleRes = R.string.guide_wowbox64_subtitle,
+        icon = Icons.Default.AutoAwesome,
+        badgeRes = R.string.badge_advanced,
+        whatItIsRes = R.string.guide_wowbox64_whatitis,
+        tryFirstRes = R.string.guide_wowbox64_tryfirst,
+        bestForRes = R.string.guide_wowbox64_bestfor,
+        switchWhenRes = R.string.guide_wowbox64_switchwhen,
+        tipRes = listOf(
+            R.string.guide_wowbox64_tip1,
+            R.string.guide_wowbox64_tip2,
+            R.string.guide_wowbox64_tip3
+        )
+    ),
+    GuideTopic(
+        id = "fexcore",
+        categoryRes = R.string.category_cpu,
+        titleRes = R.string.guide_fexcore_title,
+        subtitleRes = R.string.guide_fexcore_subtitle,
+        icon = Icons.Default.DeveloperBoard,
+        badgeRes = R.string.badge_alternative,
+        whatItIsRes = R.string.guide_fexcore_whatitis,
+        tryFirstRes = R.string.guide_fexcore_tryfirst,
+        bestForRes = R.string.guide_fexcore_bestfor,
+        switchWhenRes = R.string.guide_fexcore_switchwhen,
+        tipRes = listOf(
+            R.string.guide_fexcore_tip1,
+            R.string.guide_fexcore_tip2,
+            R.string.guide_fexcore_tip3
+        )
+    ),
+    GuideTopic(
+        id = "dxvk",
+        categoryRes = R.string.category_graphics,
+        titleRes = R.string.guide_dxvk_title,
+        subtitleRes = R.string.guide_dxvk_subtitle,
+        icon = Icons.Default.SportsEsports,
+        badgeRes = R.string.badge_dx8_11,
+        whatItIsRes = R.string.guide_dxvk_whatitis,
+        tryFirstRes = R.string.guide_dxvk_tryfirst,
+        bestForRes = R.string.guide_dxvk_bestfor,
+        switchWhenRes = R.string.guide_dxvk_switchwhen,
+        tipRes = listOf(
+            R.string.guide_dxvk_tip1,
+            R.string.guide_dxvk_tip2,
+            R.string.guide_dxvk_tip3
+        )
+    ),
+    GuideTopic(
+        id = "vkd3d",
+        categoryRes = R.string.category_graphics,
+        titleRes = R.string.guide_vkd3d_title,
+        subtitleRes = R.string.guide_vkd3d_subtitle,
+        icon = Icons.Default.ViewInAr,
+        badgeRes = R.string.badge_dx12,
+        whatItIsRes = R.string.guide_vkd3d_whatitis,
+        tryFirstRes = R.string.guide_vkd3d_tryfirst,
+        bestForRes = R.string.guide_vkd3d_bestfor,
+        switchWhenRes = R.string.guide_vkd3d_switchwhen,
+        tipRes = listOf(
+            R.string.guide_vkd3d_tip1,
+            R.string.guide_vkd3d_tip2,
+            R.string.guide_vkd3d_tip3
+        )
+    ),
+    GuideTopic(
+        id = "d7vk",
+        categoryRes = R.string.category_graphics,
+        titleRes = R.string.guide_d7vk_title,
+        subtitleRes = R.string.guide_d7vk_subtitle,
+        icon = Icons.Default.Gamepad,
+        badgeRes = R.string.badge_legacy_games,
+        whatItIsRes = R.string.guide_d7vk_whatitis,
+        tryFirstRes = R.string.guide_d7vk_tryfirst,
+        bestForRes = R.string.guide_d7vk_bestfor,
+        switchWhenRes = R.string.guide_d7vk_switchwhen,
+        tipRes = listOf(
+            R.string.guide_d7vk_tip1,
+            R.string.guide_d7vk_tip2,
+            R.string.guide_d7vk_tip3
+        )
+    )
+)
+
+private fun guideTopicIdForSection(sectionId: String): String = when {
+    sectionId == "turnip" -> "turnip"
+    sectionId == "qualcomm" -> "qualcomm"
+    sectionId.startsWith("component:") -> sectionId.substringAfter("component:").lowercase(Locale.ROOT)
+    else -> sectionId.lowercase(Locale.ROOT)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ComponentGuideScreen(
+    onBack: () -> Unit,
+    adrenoSeries: String?,
+    initialTopicId: String? = null
+) {
+    BackHandler { onBack() }
+
+    val listState = rememberLazyListState()
+    var expandedId by rememberSaveable { mutableStateOf(initialTopicId) }
+
+    LaunchedEffect(initialTopicId) {
+        if (initialTopicId != null) {
+            val index = componentGuideTopics.indexOfFirst { it.id == initialTopicId }
+            if (index >= 0) {
+                expandedId = initialTopicId
+                listState.animateScrollToItem(index + 3)
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(appString(R.string.component_guide))
+                        Text(
+                            appString(R.string.what_each_download_does),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = appString(R.string.back))
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item(key = "guide_intro") {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            Icon(
+                                Icons.Default.School,
+                                contentDescription = null,
+                                modifier = Modifier.padding(12.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(appString(R.string.choose_components_confidence), style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                appString(R.string.guide_intro_desc),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            item(key = "guide_quick_pick") {
+                QuickPickGuideCard(adrenoSeries)
+            }
+
+            item(key = "guide_notice") {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            appString(R.string.guide_notice),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            componentGuideTopics.forEach { topic ->
+                item(key = "guide_topic_${topic.id}") {
+                    GuideTopicCard(
+                        topic = topic,
+                        expanded = expandedId == topic.id,
+                        onClick = {
+                            expandedId = if (expandedId == topic.id) null else topic.id
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickPickGuideCard(adrenoSeries: String?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(appString(R.string.quick_pick), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (adrenoSeries != null) appString(R.string.starting_points_adreno, adrenoSeries) else appString(R.string.good_starting_points),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+
+            QuickPickRow(appString(R.string.gpu_driver), appString(R.string.quick_gpu))
+            QuickPickRow("DirectX 8–11", appString(R.string.quick_dx8_11))
+            QuickPickRow("DirectX 12", appString(R.string.quick_dx12))
+            QuickPickRow("Direct3D 3–7", appString(R.string.quick_d3d3_7))
+            QuickPickRow(appString(R.string.windows_runtime), appString(R.string.quick_windows))
+            QuickPickRow(appString(R.string.x86_64_arm64), appString(R.string.quick_cpu))
+        }
+    }
+}
+
+@Composable
+private fun QuickPickRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            label,
+            modifier = Modifier.width(112.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+    }
+}
+
+@Composable
+private fun GuideTopicCard(
+    topic: GuideTopic,
+    expanded: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (expanded) MaterialTheme.colorScheme.surfaceContainerHigh
+            else MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Icon(
+                        topic.icon,
+                        contentDescription = null,
+                        modifier = Modifier.padding(10.dp),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(appString(topic.titleRes), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        appString(topic.subtitleRes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) appString(R.string.collapse) else appString(R.string.expand)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SuggestionChip(onClick = {}, label = { Text(appString(topic.categoryRes)) })
+                AssistChip(onClick = {}, label = { Text(appString(topic.badgeRes)) })
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    HorizontalDivider()
+                    GuideDetailBlock(appString(R.string.what_it_is), appString(topic.whatItIsRes), Icons.Default.Info)
+                    GuideDetailBlock(appString(R.string.try_first), appString(topic.tryFirstRes), Icons.Default.PlayArrow)
+                    GuideDetailBlock(appString(R.string.best_for), appString(topic.bestForRes), Icons.Default.CheckCircle)
+                    GuideDetailBlock(appString(R.string.when_to_switch), appString(topic.switchWhenRes), Icons.Default.SwapHoriz)
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            appString(R.string.useful_notes),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        topic.tipRes.forEach { tipRes ->
+                            Row(verticalAlignment = Alignment.Top) {
+                                Text("•", style = MaterialTheme.typography.bodySmall)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    appString(tipRes),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GuideDetailBlock(label: String, text: String, icon: ImageVector) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -987,6 +1633,7 @@ fun DriverHubScreen(
     onSelectedSectionChange: (String) -> Unit,
     onTurnipSourceChange: (String) -> Unit,
     onQualcommSourceChange: (String) -> Unit,
+    onOpenGuide: (String?) -> Unit,
     onDownloadAsset: (GithubRelease, GithubAsset) -> Unit,
     onDownloadComponent: (Component) -> Unit
 ) {
@@ -1038,9 +1685,9 @@ fun DriverHubScreen(
                 HubSection(
                     id = "turnip",
                     title = "Turnip",
-                    subtitle = "Mesa GPU driver",
+                    subtitle = appString(R.string.mesa_gpu_driver),
                     latest = turnipReleases.firstOrNull()?.tagName ?: "—",
-                    source = currentTurnipSource?.name ?: "Unknown",
+                    source = currentTurnipSource?.name ?: appString(R.string.unknown),
                     icon = Icons.Default.Eco
                 )
             )
@@ -1050,9 +1697,9 @@ fun DriverHubScreen(
                 HubSection(
                     id = "qualcomm",
                     title = "Qualcomm",
-                    subtitle = "Official GPU driver",
+                    subtitle = appString(R.string.official_gpu_driver),
                     latest = qualcommReleases.firstOrNull()?.tagName ?: "—",
-                    source = currentQualcommSource?.name ?: "Unknown",
+                    source = currentQualcommSource?.name ?: appString(R.string.unknown),
                     icon = Icons.Default.Memory
                 )
             )
@@ -1067,7 +1714,7 @@ fun DriverHubScreen(
                         title = type,
                         subtitle = componentSubtitle(type),
                         latest = list.firstOrNull()?.verName ?: "—",
-                        source = source?.name ?: "Unknown",
+                        source = source?.name ?: appString(R.string.unknown),
                         icon = componentIcon(type)
                     )
                 )
@@ -1097,16 +1744,16 @@ fun DriverHubScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Download hub", style = MaterialTheme.typography.headlineSmall)
+                    Text(appString(R.string.download_hub), style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        "Choose a category to open its downloads.",
+                        appString(R.string.download_hub_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 SuggestionChip(
                     onClick = {},
-                    label = { Text(if (sourceCatalogRemote) "Live sources" else "Fallback sources") },
+                    label = { Text(if (sourceCatalogRemote) appString(R.string.live_sources) else appString(R.string.fallback_sources)) },
                     icon = {
                         Icon(
                             if (sourceCatalogRemote) Icons.Default.CloudDone else Icons.Default.CloudOff,
@@ -1127,7 +1774,7 @@ fun DriverHubScreen(
                     Column(Modifier.padding(20.dp)) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         Spacer(Modifier.height(12.dp))
-                        Text("Fetching the latest drivers, components and source catalog…")
+                        Text(appString(R.string.fetching_latest))
                     }
                 }
             }
@@ -1160,13 +1807,22 @@ fun DriverHubScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Selected", style = MaterialTheme.typography.titleMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(appString(R.string.selected), style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         selectedInfo?.let { info ->
+                            IconButton(
+                                onClick = { onOpenGuide(guideTopicIdForSection(info.id)) }
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = appString(R.string.about_component, info.title))
+                            }
                             AssistChip(
                                 onClick = {},
                                 enabled = false,
-                                label = { Text(info.source) },
+                                modifier = Modifier.widthIn(max = 150.dp),
+                                label = { Text(info.source, maxLines = 1) },
                                 leadingIcon = {
                                     Icon(Icons.Default.Dns, contentDescription = null, modifier = Modifier.size(18.dp))
                                 }
@@ -1193,8 +1849,8 @@ fun DriverHubScreen(
 
                         sectionId == "qualcomm" && currentQualcommSource != null -> {
                             DriverCardDynamic(
-                                title = "Qualcomm Driver",
-                                description = "Qualcomm proprietary graphics-driver packages. Try these when a game behaves better with the vendor driver.",
+                                title = appString(R.string.qualcomm_driver),
+                                description = appString(R.string.qualcomm_driver_desc),
                                 icon = Icons.Default.Memory,
                                 sources = qualcommSources,
                                 currentSourceId = qualcommSourceId,
@@ -1233,7 +1889,7 @@ fun DriverHubScreen(
 
         item(key = "footer") {
             Text(
-                text = "Versions are fetched directly from the selected upstream source. Change sources at any time; EmuHub remembers one source per category.",
+                text = appString(R.string.versions_footer),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.fillMaxWidth()
@@ -1267,9 +1923,9 @@ private fun DeviceSummaryCard(deviceInfo: DeviceInfo?, isLoading: Boolean) {
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Your device", style = MaterialTheme.typography.titleLarge)
+                    Text(appString(R.string.your_device), style = MaterialTheme.typography.titleLarge)
                     Text(
-                        if (isLoading) "Detecting hardware…" else deviceInfo?.gpuRenderer ?: "Hardware unavailable",
+                        if (isLoading) appString(R.string.detecting_hardware) else deviceInfo?.gpuRenderer ?: appString(R.string.hardware_unavailable),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         maxLines = 2
@@ -1286,19 +1942,19 @@ private fun DeviceSummaryCard(deviceInfo: DeviceInfo?, isLoading: Boolean) {
                 ) {
                     DeviceStat(
                         icon = Icons.Default.Android,
-                        label = "Android",
+                        label = appString(R.string.android_label),
                         value = deviceInfo.androidVersion,
                         modifier = Modifier.weight(1f)
                     )
                     DeviceStat(
                         icon = Icons.Default.Memory,
-                        label = "GPU",
+                        label = appString(R.string.gpu_label),
                         value = "Adreno ${deviceInfo.adrenoSeries}",
                         modifier = Modifier.weight(1f)
                     )
                     DeviceStat(
                         icon = Icons.Default.Storage,
-                        label = "RAM",
+                        label = appString(R.string.ram_label),
                         value = deviceInfo.ram,
                         modifier = Modifier.weight(1f)
                     )
@@ -1376,7 +2032,7 @@ private fun DownloadIndexCard(
                 if (selected) {
                     Icon(
                         Icons.Default.CheckCircle,
-                        contentDescription = "Selected",
+                        contentDescription = appString(R.string.selected),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 } else {
@@ -1395,13 +2051,13 @@ private fun DownloadIndexCard(
                 maxLines = 1
             )
             Text(
-                "Source: ${section.source}",
+                appString(R.string.source_format, section.source),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
             Text(
-                "Latest: ${section.latest}",
+                appString(R.string.latest_format, section.latest),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1
@@ -1422,16 +2078,17 @@ private fun componentIcon(type: String): ImageVector = when (type) {
     else -> Icons.Default.Extension
 }
 
+@Composable
 private fun componentSubtitle(type: String): String = when (type) {
-    "Wine" -> "Windows compatibility layer"
-    "Proton" -> "Gaming compatibility layer"
-    "Box64" -> "x86_64 translation"
-    "WOWBox64" -> "WoW64 translation"
-    "DXVK" -> "Direct3D 8–11 to Vulkan"
-    "FEXCore" -> "x86/x64 translation"
-    "VKD3D" -> "Direct3D 12 to Vulkan"
-    "D7VK" -> "Direct3D 7 to Vulkan"
-    else -> "Runtime component"
+    "Wine" -> appString(R.string.component_wine_subtitle)
+    "Proton" -> appString(R.string.component_proton_subtitle)
+    "Box64" -> appString(R.string.component_box64_subtitle)
+    "WOWBox64" -> appString(R.string.component_wowbox64_subtitle)
+    "DXVK" -> appString(R.string.component_dxvk_subtitle)
+    "FEXCore" -> appString(R.string.component_fex_subtitle)
+    "VKD3D" -> appString(R.string.component_vkd3d_subtitle)
+    "D7VK" -> appString(R.string.component_d7vk_subtitle)
+    else -> appString(R.string.runtime_component)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1458,17 +2115,17 @@ fun TurnipDriverSection(
         ) {
             DownloadPanelHeader(
                 icon = Icons.Default.Eco,
-                title = "Turnip Driver",
+                title = appString(R.string.turnip_driver),
                 description = when (adrenoSeries) {
-                    "8xx" -> "Turnip builds for Adreno 8xx / Gen8 devices."
-                    "6xx", "7xx" -> "Mesa Turnip builds for Adreno 6xx and 7xx devices."
-                    else -> "Mesa Turnip graphics drivers for Adreno GPUs."
+                    "8xx" -> appString(R.string.turnip_desc_8xx)
+                    "6xx", "7xx" -> appString(R.string.turnip_desc_6_7)
+                    else -> appString(R.string.turnip_desc_generic)
                 }
             )
 
             if (currentSource != null) {
                 SourcePickerCard(
-                    title = "Driver source",
+                    title = appString(R.string.driver_source),
                     currentName = currentSource.name,
                     currentDescription = currentSource.description,
                     currentExperimental = currentSource.experimental,
@@ -1490,7 +2147,7 @@ fun TurnipDriverSection(
                 releases = releases,
                 selectionKey = selectionKey,
                 onDownload = onDownload,
-                buttonLabel = "Download Turnip"
+                buttonLabel = appString(R.string.download_turnip)
             )
         }
     }
@@ -1542,7 +2199,7 @@ private fun SourcePickerCard(
                             Spacer(Modifier.width(6.dp))
                             SuggestionChip(
                                 onClick = {},
-                                label = { Text("Experimental") }
+                                label = { Text(appString(R.string.experimental)) }
                             )
                         }
                     }
@@ -1564,7 +2221,7 @@ private fun SourcePickerCard(
             ) {
                 Icon(Icons.Default.SwapHoriz, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (options.size > 1) "Change source" else "Only source available")
+                Text(if (options.size > 1) appString(R.string.change_source) else appString(R.string.only_source_available))
             }
         }
     }
@@ -1578,9 +2235,9 @@ private fun SourcePickerCard(
                     .padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Choose source", style = MaterialTheme.typography.headlineSmall)
+                Text(appString(R.string.choose_source), style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "EmuHub downloads directly from the selected upstream provider.",
+                    appString(R.string.emuhub_downloads_upstream),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1633,7 +2290,7 @@ private fun SourcePickerCard(
                                     if (option.experimental) {
                                         Spacer(Modifier.width(6.dp))
                                         Text(
-                                            "Experimental",
+                                            appString(R.string.experimental),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.tertiary
                                         )
@@ -1711,7 +2368,7 @@ fun DriverCardDynamic(
             DownloadPanelHeader(icon = icon, title = title, description = description)
             if (currentSource != null) {
                 SourcePickerCard(
-                    title = "Driver source",
+                    title = appString(R.string.driver_source),
                     currentName = currentSource.name,
                     currentDescription = currentSource.description,
                     currentExperimental = currentSource.experimental,
@@ -1732,7 +2389,7 @@ fun DriverCardDynamic(
                 releases = releases,
                 selectionKey = selectionKey,
                 onDownload = onDownload,
-                buttonLabel = "Download $title"
+                buttonLabel = appString(R.string.download_type, title)
             )
         }
     }
@@ -1747,6 +2404,7 @@ private fun DriverReleasePicker(
     buttonLabel: String
 ) {
     val context = LocalContext.current
+    val selectVersionFileMessage = appString(R.string.select_version_file)
     var expandedRelease by remember { mutableStateOf(false) }
     var expandedAsset by remember { mutableStateOf(false) }
     var selectedTag by rememberSaveable(selectionKey) {
@@ -1789,7 +2447,7 @@ private fun DriverReleasePicker(
             color = MaterialTheme.colorScheme.errorContainer
         ) {
             Text(
-                "No compatible releases found.",
+                appString(R.string.no_compatible_releases),
                 modifier = Modifier.padding(16.dp),
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
@@ -1806,7 +2464,7 @@ private fun DriverReleasePicker(
         if (selectedRelease?.tagName == latestRelease?.tagName) {
             SuggestionChip(
                 onClick = {},
-                label = { Text("Latest") },
+                label = { Text(appString(R.string.latest)) },
                 icon = { Icon(Icons.Default.NewReleases, contentDescription = null, modifier = Modifier.size(18.dp)) }
             )
         }
@@ -1822,7 +2480,7 @@ private fun DriverReleasePicker(
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedRelease) },
             modifier = Modifier.fillMaxWidth().menuAnchor(),
-            label = { Text("Version") },
+            label = { Text(appString(R.string.version)) },
             shape = RoundedCornerShape(18.dp),
             maxLines = 1
         )
@@ -1863,7 +2521,7 @@ private fun DriverReleasePicker(
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAsset) },
                 modifier = Modifier.fillMaxWidth().menuAnchor(),
-                label = { Text("File") },
+                label = { Text(appString(R.string.file)) },
                 shape = RoundedCornerShape(18.dp),
                 maxLines = 1
             )
@@ -1907,7 +2565,7 @@ private fun DriverReleasePicker(
                 SettingsManager.setSelectedAssetName(selectionKey, release.tagName, asset.name)
                 onDownload(release, asset)
             } else {
-                Toast.makeText(context, "Select a version and file", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, selectVersionFileMessage, Toast.LENGTH_SHORT).show()
             }
         },
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
@@ -1935,6 +2593,7 @@ fun ComponentSection(
         mutableStateOf(SettingsManager.getSelectedComponentVersion(selectionKey))
     }
     val context = LocalContext.current
+    val selectVersionMessage = appString(R.string.select_version)
     val latestComponent = components.firstOrNull()
     val selected = remember(components, selectedVersion) {
         components.firstOrNull { it.verName == selectedVersion } ?: components.firstOrNull()
@@ -1965,7 +2624,7 @@ fun ComponentSection(
             )
 
             SourcePickerCard(
-                title = "$type source",
+                title = appString(R.string.source_type, type),
                 currentName = currentSource.name,
                 currentDescription = currentSource.description,
                 currentExperimental = currentSource.experimental,
@@ -1982,14 +2641,14 @@ fun ComponentSection(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    selected?.verName ?: "No version",
+                    selected?.verName ?: appString(R.string.no_version),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f)
                 )
                 if (selected?.verName == latestComponent?.verName && selected != null) {
                     SuggestionChip(
                         onClick = {},
-                        label = { Text("Latest") },
+                        label = { Text(appString(R.string.latest)) },
                         icon = { Icon(Icons.Default.NewReleases, contentDescription = null, modifier = Modifier.size(18.dp)) }
                     )
                 }
@@ -2005,8 +2664,8 @@ fun ComponentSection(
                     readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier.fillMaxWidth().menuAnchor(),
-                    label = { Text("Version") },
-                    supportingText = { Text("From ${currentSource.name}") },
+                    label = { Text(appString(R.string.version)) },
+                    supportingText = { Text(appString(R.string.from_source, currentSource.name)) },
                     shape = RoundedCornerShape(18.dp)
                 )
                 ExposedDropdownMenu(
@@ -2018,7 +2677,7 @@ fun ComponentSection(
                             text = {
                                 Column {
                                     Text(
-                                        if (index == 0) "${component.verName} • Latest" else component.verName
+                                        if (index == 0) appString(R.string.version_latest_format, component.verName) else component.verName
                                     )
                                     Text(
                                         currentSource.name,
@@ -2042,14 +2701,14 @@ fun ComponentSection(
                     selected?.let {
                         SettingsManager.setSelectedComponentVersion(selectionKey, it.verName)
                         onDownload(it)
-                    } ?: Toast.makeText(context, "Select a version", Toast.LENGTH_SHORT).show()
+                    } ?: Toast.makeText(context, selectVersionMessage, Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 shape = RoundedCornerShape(18.dp)
             ) {
                 Icon(Icons.Default.Download, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Download $type")
+                Text(appString(R.string.download_type, type))
             }
         }
     }
