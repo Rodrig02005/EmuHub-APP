@@ -81,6 +81,14 @@ All components are sourced from the [WinNative-Emu Components](https://github.co
 
 ![Downloads Screen](screenshots/downloads_screen.png)
 
+### Settings Screen
+
+![EmuHub Main Screen](screenshots/settings_screen.png)
+
+### Guide Screen
+
+![Downloads Screen](screenshots/guide_screen.png)
+
 ---
 
 ## Build Instructions

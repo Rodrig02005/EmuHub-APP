@@ -1,0 +1,20 @@
+<resources>
+    <string name="language">Idioma</string>
+    <string name="app_language">Idioma do aplicativo</string>
+    <string name="downloads">Downloads</string>
+    <string name="your_download_library">Sua biblioteca de downloads</string>
+    <string name="download_library">Biblioteca de downloads</string>
+    <string name="downloading_now">Baixando agora</string>
+    <string name="downloaded_files">Arquivos baixados</string>
+    <string name="download_folder">Pasta de downloads</string>
+    <string name="file">Arquivo</string>
+    <string name="download_type">Baixar %1$s</string>
+    <string name="download_turnip">Baixar Turnip</string>
+    <string name="share">Compartilhar</string>
+    <string name="delete">Excluir</string>
+    <string name="delete_file">Excluir arquivo</string>
+    <string name="choose_folder">Escolher pasta</string>
+    <string name="settings">Configurações</string>
+    <string name="appearance">Aparência</string>
+    <string name="source_catalog_saved">Catálogo de fontes salvo</string>
+</resources>

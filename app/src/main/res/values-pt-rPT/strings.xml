@@ -1,0 +1,10 @@
+<resources>
+    <string name="language">Idioma</string>
+    <string name="app_language">Idioma da aplicação</string>
+    <string name="downloads">Transferências</string>
+    <string name="download_folder">Pasta de transferências</string>
+    <string name="file">Ficheiro</string>
+    <string name="download_type">Transferir %1$s</string>
+    <string name="share">Partilhar</string>
+    <string name="delete">Eliminar</string>
+</resources>
