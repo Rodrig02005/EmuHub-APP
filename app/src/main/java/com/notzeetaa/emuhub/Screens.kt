@@ -1024,6 +1024,7 @@ private fun LanguageSelector(
 private fun languageLabel(language: AppLanguage): String = when (language) {
     AppLanguage.SYSTEM -> appString(R.string.language_system)
     AppLanguage.ENGLISH -> appString(R.string.language_english)
+    AppLanguage.CHINESE -> appString(R.string.language_chinese)
     AppLanguage.PORTUGUESE_PORTUGAL -> appString(R.string.language_pt_pt)
     AppLanguage.PORTUGUESE_BRAZIL -> appString(R.string.language_pt_br)
     AppLanguage.SPANISH -> appString(R.string.language_spanish)

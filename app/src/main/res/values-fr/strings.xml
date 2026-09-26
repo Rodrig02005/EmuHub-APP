@@ -43,6 +43,7 @@
     <string name="language_desc">Choisissez la langue utilisée par EmuHub. Par défaut, la langue Android est utilisée.</string>
     <string name="app_language">Langue de l’application</string>
     <string name="language_system">Langue du système</string>
+    <string name="language_chinese">Chinois (simplifié)</string>
     <string name="theme_mode">Mode du thème</string>
     <string name="theme_mode_desc">Choisissez comment les modes clair et sombre sont appliqués.</string>
     <string name="color_theme">Thème de couleurs</string>

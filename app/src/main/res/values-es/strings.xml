@@ -43,6 +43,7 @@
     <string name="language_desc">Elige el idioma de EmuHub. Predeterminado del sistema sigue el idioma de Android.</string>
     <string name="app_language">Idioma de la aplicación</string>
     <string name="language_system">Predeterminado del sistema</string>
+    <string name="language_chinese">Chino (simplificado)</string>
     <string name="theme_mode">Modo del tema</string>
     <string name="theme_mode_desc">Elige cómo se aplican los modos claro y oscuro.</string>
     <string name="color_theme">Tema de color</string>

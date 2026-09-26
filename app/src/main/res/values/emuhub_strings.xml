@@ -45,6 +45,7 @@
     <string name="app_language">App language</string>
     <string name="language_system">System default</string>
     <string name="language_english">English</string>
+    <string name="language_chinese">中文 (简体)</string>
     <string name="language_pt_pt">Português (Portugal)</string>
     <string name="language_pt_br">Português (Brasil)</string>
     <string name="language_spanish">Español</string>
