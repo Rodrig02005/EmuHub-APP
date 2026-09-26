@@ -56,20 +56,29 @@ data class SourceCatalog(
 private val sourceCatalogClient by lazy { OkHttpClient() }
 
 object SourceCatalogRepository {
-    suspend fun load(url: String = SettingsManager.getSourceCatalogUrl()): SourceCatalog =
-        withContext(Dispatchers.IO) {
-            try {
-                val request = Request.Builder().url(url).build()
-                sourceCatalogClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@withContext builtInCatalog()
-                    val body = response.body?.string().orEmpty()
-                    if (body.isBlank()) return@withContext builtInCatalog()
-                    parseCatalog(body).copy(isRemote = true)
-                }
-            } catch (_: Exception) {
-                builtInCatalog()
-            }
+    suspend fun load(url: String = SettingsManager.getSourceCatalogUrl()): SourceCatalog {
+        // Accelerate through a mirror first, then fall back to the original URL so a
+        // mirror that cannot serve this file never hides the catalog.
+        val accelerated = accelerateGithubUrl(url)
+        if (accelerated != url) {
+            loadRemote(accelerated)?.let { return it }
         }
+        return loadRemote(url) ?: builtInCatalog()
+    }
+
+    private suspend fun loadRemote(url: String): SourceCatalog? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder().url(url).build()
+            sourceCatalogClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val body = response.body?.string().orEmpty()
+                if (body.isBlank()) return@withContext null
+                parseCatalog(body).copy(isRemote = true)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     private fun parseCatalog(json: String): SourceCatalog {
         val root = JSONObject(json)

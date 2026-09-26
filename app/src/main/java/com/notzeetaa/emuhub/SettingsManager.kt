@@ -27,12 +27,25 @@ private const val KEY_TURNIP_SOURCE = "turnip_source"
 private const val KEY_QUALCOMM_SOURCE = "qualcomm_source"
 private const val KEY_SOURCE_CATALOG_URL = "source_catalog_url"
 private const val KEY_APP_LANGUAGE = "app_language"
+private const val KEY_DOWNLOAD_ACCELERATION_ENABLED = "download_acceleration_enabled"
+private const val KEY_DOWNLOAD_ACCELERATOR = "download_accelerator"
+private const val KEY_DOWNLOAD_ACCELERATOR_PREFIX = "download_accelerator_prefix"
 
 object SettingsManager {
     private lateinit var prefs: SharedPreferences
 
+    // Chinese-speaking regions get acceleration enabled on first run.
+    private var defaultAccelerationEnabled = false
+
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_SETTINGS, Context.MODE_PRIVATE)
+        defaultAccelerationEnabled = isChineseRegion(context)
+    }
+
+    private fun isChineseRegion(context: Context): Boolean {
+        val locale = context.resources.configuration.locales[0]
+        return locale.language.equals("zh", ignoreCase = true) ||
+            locale.country.equals("CN", ignoreCase = true)
     }
 
     fun getDownloadFolderUri(): String? = prefs.getString(KEY_DOWNLOAD_FOLDER_URI, null)
@@ -92,6 +105,27 @@ object SettingsManager {
 
     fun setComponentSource(type: String, sourceId: String) {
         prefs.edit().putString(preferenceKey("source", type), sourceId).apply()
+    }
+
+    fun isDownloadAccelerationEnabled(): Boolean =
+        prefs.getBoolean(KEY_DOWNLOAD_ACCELERATION_ENABLED, defaultAccelerationEnabled)
+
+    fun setDownloadAccelerationEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DOWNLOAD_ACCELERATION_ENABLED, enabled).apply()
+    }
+
+    fun getDownloadAccelerator(): DownloadAccelerator =
+        DownloadAccelerator.fromId(prefs.getString(KEY_DOWNLOAD_ACCELERATOR, null))
+
+    fun setDownloadAccelerator(accelerator: DownloadAccelerator) {
+        prefs.edit().putString(KEY_DOWNLOAD_ACCELERATOR, accelerator.id).apply()
+    }
+
+    fun getCustomAcceleratorPrefix(): String =
+        prefs.getString(KEY_DOWNLOAD_ACCELERATOR_PREFIX, "") ?: ""
+
+    fun setCustomAcceleratorPrefix(prefix: String) {
+        prefs.edit().putString(KEY_DOWNLOAD_ACCELERATOR_PREFIX, prefix.trim()).apply()
     }
 
     fun getSourceCatalogUrl(): String =

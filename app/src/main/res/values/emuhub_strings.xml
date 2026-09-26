@@ -265,4 +265,21 @@
     <string name="custom_folder">Custom folder</string>
     <string name="no_version">No version</string>
     <string name="version_latest_format">%1$s • Latest</string>
+    <string name="download_acceleration">Download acceleration</string>
+    <string name="download_acceleration_desc">Route GitHub downloads and version lookups through a free mirror. Helpful on slow connections in some regions.</string>
+    <string name="acceleration_scheme">Acceleration scheme</string>
+    <string name="accel_ghproxy_net">ghproxy.net</string>
+    <string name="accel_gh_proxy_com">gh-proxy.com</string>
+    <string name="accel_ghfast_top">ghfast.top</string>
+    <string name="accel_gh_llkk_cc">gh.llkk.cc</string>
+    <string name="accel_custom">Custom</string>
+    <string name="acceleration_custom_prefix">Custom mirror address</string>
+    <string name="acceleration_custom_hint">https://ghfast.top/</string>
+    <string name="accel_direct">Direct (no acceleration)</string>
+    <string name="speed_test_desc">Measure each mirror download speed and pick the fastest one for your network.</string>
+    <string name="speed_test_run">Test speeds</string>
+    <string name="speed_test_running">Testing…</string>
+    <string name="speed_test_failed">Failed</string>
+    <string name="speed_test_fastest">Fastest</string>
+    <string name="speed_test_tap_to_select">Tap a result to use it</string>
 </resources>

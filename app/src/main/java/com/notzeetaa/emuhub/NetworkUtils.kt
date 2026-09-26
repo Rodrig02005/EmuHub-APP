@@ -18,7 +18,26 @@ data class Component(val type: String, val verName: String, val verCode: String,
 
 private val githubClient by lazy { OkHttpClient() }
 
-suspend fun fetchGithubReleasesFromUrl(apiUrl: String): List<GithubRelease> = withContext(Dispatchers.IO) {
+/**
+ * Tries the accelerated URL first and transparently falls back to the original one.
+ * Not every mirror proxies `api.github.com`, so returning null on failure keeps the
+ * feature safe: acceleration can only ever help, never hide releases.
+ */
+private suspend fun <T> fetchWithAccelerationFallback(
+    url: String,
+    fetch: suspend (String) -> T?
+): T? {
+    val accelerated = accelerateGithubUrl(url)
+    if (accelerated != url) {
+        fetch(accelerated)?.let { return it }
+    }
+    return fetch(url)
+}
+
+suspend fun fetchGithubReleasesFromUrl(apiUrl: String): List<GithubRelease> =
+    fetchWithAccelerationFallback(apiUrl) { fetchGithubReleasesFromUrlInternal(it) } ?: emptyList()
+
+private suspend fun fetchGithubReleasesFromUrlInternal(apiUrl: String): List<GithubRelease>? = withContext(Dispatchers.IO) {
     val request = Request.Builder()
         .url(apiUrl)
         .header("Accept", "application/vnd.github+json")
@@ -27,8 +46,8 @@ suspend fun fetchGithubReleasesFromUrl(apiUrl: String): List<GithubRelease> = wi
 
     try {
         githubClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return@withContext emptyList()
-            val json = response.body?.string() ?: return@withContext emptyList()
+            if (!response.isSuccessful) return@withContext null
+            val json = response.body?.string() ?: return@withContext null
             val releasesArray = JSONArray(json)
 
             (0 until releasesArray.length()).mapNotNull { idx ->
@@ -58,7 +77,7 @@ suspend fun fetchGithubReleasesFromUrl(apiUrl: String): List<GithubRelease> = wi
             }.sortGithubReleasesNewestFirst()
         }
     } catch (_: Exception) {
-        emptyList()
+        null
     }
 }
 
@@ -143,13 +162,16 @@ suspend fun loadQualcommDriver(): GithubRelease? {
 }
 
 suspend fun fetchComponentsFromUrl(manifestUrl: String): Map<String, List<Component>> =
+    fetchWithAccelerationFallback(manifestUrl) { fetchComponentsFromUrlInternal(it) } ?: emptyMap()
+
+private suspend fun fetchComponentsFromUrlInternal(manifestUrl: String): Map<String, List<Component>>? =
     withContext(Dispatchers.IO) {
         val request = Request.Builder().url(manifestUrl).build()
 
         try {
             githubClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyMap()
-                val jsonArray = JSONArray(response.body?.string() ?: return@withContext emptyMap())
+                if (!response.isSuccessful) return@withContext null
+                val jsonArray = JSONArray(response.body?.string() ?: return@withContext null)
                 val map = mutableMapOf<String, MutableList<Component>>()
 
                 for (i in 0 until jsonArray.length()) {
@@ -174,7 +196,7 @@ suspend fun fetchComponentsFromUrl(manifestUrl: String): Map<String, List<Compon
                 map
             }
         } catch (_: Exception) {
-            emptyMap()
+            null
         }
     }
 

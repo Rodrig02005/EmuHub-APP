@@ -256,4 +256,21 @@
     <string name="custom_folder">自定义文件夹</string>
     <string name="no_version">无版本号</string>
     <string name="version_latest_format">%1$s • 最新</string>
+    <string name="download_acceleration">下载加速</string>
+    <string name="download_acceleration_desc">通过免费镜像加速从 GitHub 下载文件以及获取版本列表。网络较慢时很有用。</string>
+    <string name="acceleration_scheme">加速方案</string>
+    <string name="accel_ghproxy_net">ghproxy.net</string>
+    <string name="accel_gh_proxy_com">gh-proxy.com</string>
+    <string name="accel_ghfast_top">ghfast.top</string>
+    <string name="accel_gh_llkk_cc">gh.llkk.cc</string>
+    <string name="accel_custom">自定义</string>
+    <string name="acceleration_custom_prefix">自定义镜像地址</string>
+    <string name="acceleration_custom_hint">https://ghfast.top/</string>
+    <string name="accel_direct">直连（不加速）</string>
+    <string name="speed_test_desc">测试各镜像的下载速度，选择对你网络最快的一个。</string>
+    <string name="speed_test_run">测速</string>
+    <string name="speed_test_running">测速中…</string>
+    <string name="speed_test_failed">失败</string>
+    <string name="speed_test_fastest">最快</string>
+    <string name="speed_test_tap_to_select">点击结果即可使用该方案</string>
 </resources>

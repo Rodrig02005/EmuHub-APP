@@ -12,6 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -686,6 +687,12 @@ fun SettingsScreen(
     var currentFolderUri by remember { mutableStateOf(SettingsManager.getDownloadFolderUri()) }
     var displayPath by remember { mutableStateOf<String?>(null) }
     var sourceCatalogUrl by remember { mutableStateOf(SettingsManager.getSourceCatalogUrl()) }
+    var accelerationEnabled by remember { mutableStateOf(SettingsManager.isDownloadAccelerationEnabled()) }
+    var accelerator by remember { mutableStateOf(SettingsManager.getDownloadAccelerator()) }
+    var customAcceleratorPrefix by remember { mutableStateOf(SettingsManager.getCustomAcceleratorPrefix()) }
+    val speedTestScope = rememberCoroutineScope()
+    var speedTestRunning by remember { mutableStateOf(false) }
+    var speedResults by remember { mutableStateOf<List<AcceleratorSpeedResult>>(emptyList()) }
 
     val folderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
@@ -866,6 +873,102 @@ fun SettingsScreen(
             }
 
             item {
+                SettingsCard(title = appString(R.string.download_acceleration)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = null,
+                                modifier = Modifier.padding(10.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = appString(R.string.download_acceleration_desc),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Switch(
+                            checked = accelerationEnabled,
+                            onCheckedChange = {
+                                accelerationEnabled = it
+                                SettingsManager.setDownloadAccelerationEnabled(it)
+                            }
+                        )
+                    }
+
+                    if (accelerationEnabled) {
+                        Spacer(Modifier.height(12.dp))
+                        AcceleratorSelector(
+                            selected = accelerator,
+                            customPrefix = customAcceleratorPrefix,
+                            onSelected = {
+                                accelerator = it
+                                SettingsManager.setDownloadAccelerator(it)
+                            },
+                            onCustomPrefixChange = {
+                                customAcceleratorPrefix = it
+                                SettingsManager.setCustomAcceleratorPrefix(it)
+                            }
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(16.dp))
+                    AcceleratorSpeedTestSection(
+                        running = speedTestRunning,
+                        results = speedResults,
+                        onRun = {
+                            if (!speedTestRunning) {
+                                speedTestRunning = true
+                                speedResults = emptyList()
+                                speedTestScope.launch {
+                                    val measured = mutableListOf<AcceleratorSpeedResult>()
+                                    speedTestTargets(customAcceleratorPrefix).forEach { target ->
+                                        measured += target.copy(
+                                            bytesPerSecond = measureAcceleratorSpeed(
+                                                target.accelerator,
+                                                target.customPrefix
+                                            )
+                                        )
+                                        speedResults = measured.toList()
+                                    }
+                                    speedTestRunning = false
+                                }
+                            }
+                        },
+                        onSelect = { result ->
+                            if (result.isDirect) {
+                                accelerationEnabled = false
+                                SettingsManager.setDownloadAccelerationEnabled(false)
+                            } else {
+                                result.accelerator?.let { chosen ->
+                                    accelerationEnabled = true
+                                    SettingsManager.setDownloadAccelerationEnabled(true)
+                                    accelerator = chosen
+                                    SettingsManager.setDownloadAccelerator(chosen)
+                                    if (chosen == DownloadAccelerator.CUSTOM) {
+                                        customAcceleratorPrefix = result.customPrefix
+                                        SettingsManager.setCustomAcceleratorPrefix(result.customPrefix)
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+
+            item {
                 SettingsCard(title = appString(R.string.download_folder)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1018,6 +1121,181 @@ private fun LanguageSelector(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AcceleratorSelector(
+    selected: DownloadAccelerator,
+    customPrefix: String,
+    onSelected: (DownloadAccelerator) -> Unit,
+    onCustomPrefixChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val choices = DownloadAccelerator.entries.toList()
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = acceleratorLabel(selected),
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                label = { Text(appString(R.string.acceleration_scheme)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                shape = RoundedCornerShape(18.dp)
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                choices.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(acceleratorLabel(option)) },
+                        leadingIcon = if (option == selected) {
+                            { Icon(Icons.Default.Check, contentDescription = null) }
+                        } else null,
+                        onClick = {
+                            expanded = false
+                            onSelected(option)
+                        }
+                    )
+                }
+            }
+        }
+
+        if (selected == DownloadAccelerator.CUSTOM) {
+            OutlinedTextField(
+                value = customPrefix,
+                onValueChange = onCustomPrefixChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(appString(R.string.acceleration_custom_prefix)) },
+                placeholder = { Text(appString(R.string.acceleration_custom_hint)) },
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AcceleratorSpeedTestSection(
+    running: Boolean,
+    results: List<AcceleratorSpeedResult>,
+    onRun: () -> Unit,
+    onSelect: (AcceleratorSpeedResult) -> Unit
+) {
+    Text(
+        text = appString(R.string.speed_test_desc),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(Modifier.height(10.dp))
+    OutlinedButton(
+        onClick = onRun,
+        enabled = !running,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (running) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(8.dp))
+            Text(appString(R.string.speed_test_running))
+        } else {
+            Icon(Icons.Default.Speed, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(appString(R.string.speed_test_run))
+        }
+    }
+
+    if (results.isNotEmpty()) {
+        val fastest = results.mapNotNull { it.bytesPerSecond }.maxOrNull()
+        Spacer(Modifier.height(10.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            results.forEach { result ->
+                SpeedResultRow(
+                    result = result,
+                    isFastest = result.bytesPerSecond != null && result.bytesPerSecond == fastest,
+                    onClick = { onSelect(result) }
+                )
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = appString(R.string.speed_test_tap_to_select),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SpeedResultRow(
+    result: AcceleratorSpeedResult,
+    isFastest: Boolean,
+    onClick: () -> Unit
+) {
+    val label = result.accelerator?.let { acceleratorLabel(it) } ?: appString(R.string.accel_direct)
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            if (isFastest) {
+                Text(
+                    text = appString(R.string.speed_test_fastest),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                text = result.bytesPerSecond?.let { formatSpeed(it) }
+                    ?: appString(R.string.speed_test_failed),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (result.bytesPerSecond == null) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+            )
+        }
+    }
+}
+
+private fun formatSpeed(bytesPerSecond: Long): String = when {
+    bytesPerSecond >= 1_000_000L ->
+        String.format(Locale.US, "%.1f MB/s", bytesPerSecond / 1_000_000.0)
+    bytesPerSecond >= 1_000L ->
+        String.format(Locale.US, "%.0f KB/s", bytesPerSecond / 1_000.0)
+    else ->
+        String.format(Locale.US, "%d B/s", bytesPerSecond)
+}
+
+@Composable
+private fun acceleratorLabel(accelerator: DownloadAccelerator): String = when (accelerator) {
+    DownloadAccelerator.GHPROXY_NET -> appString(R.string.accel_ghproxy_net)
+    DownloadAccelerator.GH_PROXY_COM -> appString(R.string.accel_gh_proxy_com)
+    DownloadAccelerator.GHFAST_TOP -> appString(R.string.accel_ghfast_top)
+    DownloadAccelerator.GH_LLKK_CC -> appString(R.string.accel_gh_llkk_cc)
+    DownloadAccelerator.GH_PROXY_VIP -> "ghproxy.vip"
+    DownloadAccelerator.CUSTOM -> appString(R.string.accel_custom)
 }
 
 @Composable
