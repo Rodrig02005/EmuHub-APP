@@ -113,6 +113,88 @@
           "710-720-Test"
         ]
       }
+    },
+    {
+      "id": "s1mptom",
+      "name": "s1mptom (A830/A840 eden)",
+      "apiUrl": "https://api.github.com/repos/s1mptom/freedreno_turnip-CI/releases",
+      "description": "Upstream Mesa + GPU enablement hacks for Adreno A830/A840, patched for the eden emulator.",
+      "experimental": true,
+      "supportedSeries": [
+        "8xx"
+      ],
+      "supportedModels": [
+        "830",
+        "840"
+      ],
+      "filters": {
+        "default": [
+          "Turnip",
+          "Mesa"
+        ]
+      }
+    },
+    {
+      "id": "wintermist010-a810",
+      "name": "WinterMist010 (A810/A812)",
+      "apiUrl": "https://api.github.com/repos/WinterMist010/AdrenoToolsDriversA810/releases",
+      "description": "Experimental Turnip builds for Adreno A810/A812.",
+      "experimental": true,
+      "supportedSeries": [
+        "8xx"
+      ],
+      "supportedModels": [
+        "810",
+        "812"
+      ],
+      "filters": {
+        "default": [
+          "Turnip",
+          "A81"
+        ]
+      }
+    },
+    {
+      "id": "diskdvd-a8xx",
+      "name": "DiskDVD (A810/A829)",
+      "apiUrl": "https://api.github.com/repos/DiskDVD/TurniptoolsA8XX/releases",
+      "description": "whitebelyashx fork with extra patches for Adreno A810/A829, actively maintained.",
+      "experimental": true,
+      "supportedSeries": [
+        "8xx"
+      ],
+      "supportedModels": [
+        "810",
+        "829"
+      ],
+      "filters": {
+        "default": [
+          "A8XX",
+          "Turnip"
+        ]
+      }
+    },
+    {
+      "id": "vauzi17-710",
+      "name": "Vauzi-17 (710/720/722)",
+      "apiUrl": "https://api.github.com/repos/Vauzi-17/710/releases",
+      "description": "Mature Turnip builds for Adreno 710/720/722, includes dedicated Winlator glibc builds.",
+      "experimental": false,
+      "supportedSeries": [
+        "7xx"
+      ],
+      "supportedModels": [
+        "710",
+        "720",
+        "722"
+      ],
+      "filters": {
+        "default": [
+          "Turnip",
+          "710",
+          "720"
+        ]
+      }
     }
   ],
   "qualcommSources": [
