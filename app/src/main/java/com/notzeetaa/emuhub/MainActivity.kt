@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
                     val result = withContext(Dispatchers.IO) {
                         val info = DeviceInfo.collect(this@MainActivity)
                         val catalog = SourceCatalogRepository.load()
-                        val compatibleSources = catalog.compatibleTurnipSources(info.adrenoSeries)
+                        val compatibleSources = catalog.compatibleTurnipSources(info.adrenoSeries, info.gpuModel)
 
                         val selectedSource = compatibleSources.firstOrNull { source ->
                             source.id.equals(turnipSourceId, ignoreCase = true) ||
@@ -282,7 +282,7 @@ class MainActivity : ComponentActivity() {
                                         deviceInfo = deviceInfo,
                                         isLoading = isLoading,
                                         turnipSourceId = turnipSourceId,
-                                        turnipSources = sourceCatalog.compatibleTurnipSources(deviceInfo?.adrenoSeries),
+                                        turnipSources = sourceCatalog.compatibleTurnipSources(deviceInfo?.adrenoSeries, deviceInfo?.gpuModel),
                                         turnipReleases = turnipReleases,
                                         qualcommSourceId = qualcommSourceId,
                                         qualcommSources = sourceCatalog.qualcommSources,

@@ -13,15 +13,18 @@ data class DeviceInfo(
     val androidVersion: String,
     val ram: String,
     val gpuRenderer: String,
-    val adrenoSeries: String
+    val adrenoSeries: String,
+    val gpuModel: String
 ) {
     companion object {
         suspend fun collect(context: Context): DeviceInfo = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val renderer = getGpuRenderer()
             DeviceInfo(
                 "${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
                 getTotalRam(context),
-                getGpuRenderer(),
-                detectAdrenoSeries(getGpuRenderer())
+                renderer,
+                detectAdrenoSeries(renderer),
+                detectGpuModel(renderer)
             )
         }
     }
@@ -30,6 +33,15 @@ data class DeviceInfo(
 fun detectAdrenoSeries(gpuString: String): String {
     val model = Regex("Adreno.*?(\\d{3,4})", RegexOption.IGNORE_CASE).find(gpuString)?.groupValues?.get(1) ?: return "unknown"
     return when { model.startsWith("8") -> "8xx"; model.startsWith("7") -> "7xx"; model.startsWith("6") -> "6xx"; else -> "unknown" }
+}
+
+/**
+ * Extracts the specific Adreno GPU model number (e.g. "740", "810", "830").
+ * Returns "unknown" if the GPU is not Adreno or the model cannot be parsed.
+ */
+fun detectGpuModel(gpuString: String): String {
+    return Regex("Adreno.*?(\\d{3,4})", RegexOption.IGNORE_CASE)
+        .find(gpuString)?.groupValues?.get(1) ?: "unknown"
 }
 
 private fun getTotalRam(context: Context): String {

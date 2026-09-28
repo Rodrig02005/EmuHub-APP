@@ -17,6 +17,7 @@ data class TurnipSource(
     val description: String,
     val experimental: Boolean,
     val supportedSeries: Set<String>,
+    val supportedModels: Set<String> = emptySet(),
     val filters: Map<String, List<String>>,
     val assetIncludes: Map<String, List<String>> = emptyMap(),
     val assetExcludes: Map<String, List<String>> = emptyMap()
@@ -45,11 +46,21 @@ data class SourceCatalog(
     val componentSources: List<ComponentSource>,
     val isRemote: Boolean = false
 ) {
-    fun compatibleTurnipSources(adrenoSeries: String?): List<TurnipSource> {
+    /**
+     * Returns Turnip sources compatible with the detected GPU.
+     * Filters first by supportedSeries (6xx/7xx/8xx), then by supportedModels
+     * (specific model numbers like 830, 810, 710) when the source defines them.
+     * Sources with empty supportedModels are treated as model-agnostic.
+     */
+    fun compatibleTurnipSources(adrenoSeries: String?, gpuModel: String? = null): List<TurnipSource> {
         if (adrenoSeries.isNullOrBlank()) return turnipSources
-        return turnipSources.filter { source ->
+        val seriesFiltered = turnipSources.filter { source ->
             source.supportedSeries.isEmpty() || adrenoSeries in source.supportedSeries
         }.ifEmpty { turnipSources }
+        if (gpuModel.isNullOrBlank() || gpuModel == "unknown") return seriesFiltered
+        return seriesFiltered.filter { source ->
+            source.supportedModels.isEmpty() || gpuModel in source.supportedModels
+        }.ifEmpty { seriesFiltered }
     }
 }
 
@@ -103,6 +114,13 @@ object SourceCatalogRepository {
                     }
                 }
 
+                val modelsArray = obj.optJSONArray("supportedModels") ?: JSONArray()
+                val supportedModels = buildSet {
+                    for (m in 0 until modelsArray.length()) {
+                        modelsArray.optString(m).takeIf { it.isNotBlank() }?.let(::add)
+                    }
+                }
+
                 val filtersObject = obj.optJSONObject("filters") ?: JSONObject()
                 val filters = parseStringListMap(filtersObject)
                 val assetIncludes = parseStringListMap(obj.optJSONObject("assetIncludes") ?: JSONObject())
@@ -116,6 +134,7 @@ object SourceCatalogRepository {
                         description = obj.optString("description"),
                         experimental = obj.optBoolean("experimental", false),
                         supportedSeries = supportedSeries,
+                        supportedModels = supportedModels,
                         filters = filters,
                         assetIncludes = assetIncludes,
                         assetExcludes = assetExcludes
@@ -255,6 +274,46 @@ object SourceCatalogRepository {
                     "6xx" to listOf("A8xx", "710-720-Test"),
                     "7xx" to listOf("A8xx", "710-720-Test")
                 )
+            ),
+            TurnipSource(
+                id = "s1mptom",
+                name = "s1mptom (A830/A840 eden)",
+                apiUrl = "https://api.github.com/repos/s1mptom/freedreno_turnip-CI/releases",
+                description = "Upstream Mesa + GPU enablement hacks for Adreno A830/A840, patched for the eden emulator.",
+                experimental = true,
+                supportedSeries = setOf("8xx"),
+                supportedModels = setOf("830", "840"),
+                filters = mapOf("default" to listOf("Turnip", "Mesa"))
+            ),
+            TurnipSource(
+                id = "wintermist010-a810",
+                name = "WinterMist010 (A810/A812)",
+                apiUrl = "https://api.github.com/repos/WinterMist010/AdrenoToolsDriversA810/releases",
+                description = "Experimental Turnip builds for Adreno A810/A812.",
+                experimental = true,
+                supportedSeries = setOf("8xx"),
+                supportedModels = setOf("810", "812"),
+                filters = mapOf("default" to listOf("Turnip", "A81"))
+            ),
+            TurnipSource(
+                id = "diskdvd-a8xx",
+                name = "DiskDVD (A810/A829)",
+                apiUrl = "https://api.github.com/repos/DiskDVD/TurniptoolsA8XX/releases",
+                description = "whitebelyashx fork with extra patches for Adreno A810/A829, actively maintained.",
+                experimental = true,
+                supportedSeries = setOf("8xx"),
+                supportedModels = setOf("810", "829"),
+                filters = mapOf("default" to listOf("A8XX", "Turnip"))
+            ),
+            TurnipSource(
+                id = "vauzi17-710",
+                name = "Vauzi-17 (710/720/722)",
+                apiUrl = "https://api.github.com/repos/Vauzi-17/710/releases",
+                description = "Mature Turnip builds for Adreno 710/720/722, includes dedicated Winlator glibc builds.",
+                experimental = false,
+                supportedSeries = setOf("7xx"),
+                supportedModels = setOf("710", "720", "722"),
+                filters = mapOf("default" to listOf("Turnip", "710", "720"))
             )
         ),
         qualcommSources = listOf(
